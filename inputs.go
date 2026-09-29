@@ -77,6 +77,14 @@ func phoneDigits(text string) string {
 	if len(groups) == 1 {
 		return capPhone(stripCountry(groups[0]))
 	}
+	// O campo ja formatado com uma tecla a mais: os separadores ali sao da
+	// mascara, e nao a divisa entre dois telefones. Tratado como dois numeros,
+	// o 12o digito apertado sem olhar apagava o fim do telefone:
+	// "(51) 92004-0000" virava "(51) 9200-4". Sem tirar o 55, que aqui e DDD.
+	// Sobrando mais de um digito ja e texto colado, e vale a regra de baixo.
+	if digits := onlyDigits(text); len(digits) == 12 && isMaskedPhone(text) {
+		return capPhone(digits)
+	}
 	// Cabe tudo num telefone so? Entao era um numero so, escrito com espacos.
 	if whole := stripCountry(strings.Join(groups, "")); len(whole) <= 11 {
 		return whole
@@ -94,6 +102,21 @@ func phoneDigits(text string) string {
 		return capPhone(stripCountry(groups[0]))
 	}
 	return stripCountry(kept)
+}
+
+// isMaskedPhone diz se o texto tem a forma que maskPhone devolve, como
+// "(51) 99876-5432", mesmo com um digito a mais no meio.
+func isMaskedPhone(text string) bool {
+	if !strings.HasPrefix(text, "(") {
+		return false
+	}
+	separators := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return -1
+		}
+		return r
+	}, text)
+	return separators == "() " || separators == "() -"
 }
 
 // stripCountry tira o 55 de um numero colado com o codigo do pais.
@@ -194,6 +217,12 @@ func maskMoney(text string) string {
 }
 
 // attachMask instala a mascara no campo mantendo o handler original (next).
+//
+// O SetText do Fyne deixa o cursor na mesma coluna em que estava, mas a mascara
+// acrescenta caracteres ("(", ") ", "-", ".", "R$ "). Sem recolocar o cursor ele
+// ficava para tras do que foi digitado: o primeiro digito ja virava "(|5", e
+// cada digito seguinte entrava no meio do numero. Quem digitava 51920040000 sem
+// olhar a tela ficava com (19) 04000-0025.
 func attachMask(entry *dbsEntry, mask func(string) string, next func(string)) {
 	if entry == nil {
 		return
@@ -205,8 +234,11 @@ func attachMask(entry *dbsEntry, mask func(string) string, next func(string)) {
 		}
 		formatted := mask(text)
 		if formatted != text {
+			cursor := maskedCursor(text, entry.CursorColumn, formatted)
 			applying = true
 			entry.SetText(formatted)
+			entry.CursorColumn = cursor
+			entry.Refresh()
 			applying = false
 			text = formatted
 		}
@@ -214,6 +246,57 @@ func attachMask(entry *dbsEntry, mask func(string) string, next func(string)) {
 			next(text)
 		}
 	}
+}
+
+// maskedCursor devolve a coluna do cursor depois que a mascara reescreveu o
+// texto: logo depois do mesmo digito em que ele estava.
+//
+// Telefone e CPF crescem para a direita, entao basta contar os digitos antes do
+// cursor. O dinheiro cresce como na maquininha, pela direita: "5" vira
+// "R$ 0,05" e ganha zeros na frente. Ali o que nao muda e a quantidade de
+// digitos depois do cursor.
+func maskedCursor(text string, cursor int, formatted string) int {
+	runes := []rune(text)
+	if cursor < 0 {
+		cursor = 0
+	}
+	if cursor > len(runes) {
+		cursor = len(runes)
+	}
+	before := len(onlyDigits(string(runes[:cursor])))
+	after := len(onlyDigits(string(runes[cursor:])))
+	typed, kept := onlyDigits(text), onlyDigits(formatted)
+	switch {
+	case typed == kept:
+	case strings.HasSuffix(kept, typed) || strings.HasSuffix(typed, kept):
+		// Digitos entraram ou sairam pela esquerda: os zeros do dinheiro, o 55
+		// de um telefone colado com o codigo do pais.
+		before = len(kept) - after
+	case strings.HasPrefix(kept, typed) || strings.HasPrefix(typed, kept):
+		// Sobrou digito na direita (telefone com mais de 11): a contagem pela
+		// esquerda continua valendo.
+	default:
+		return len([]rune(formatted))
+	}
+	return columnAfterDigits(formatted, before)
+}
+
+// columnAfterDigits devolve a coluna logo depois do n-esimo digito do texto.
+func columnAfterDigits(text string, n int) int {
+	if n <= 0 {
+		return 0
+	}
+	runes := []rune(text)
+	seen := 0
+	for i, r := range runes {
+		if r >= '0' && r <= '9' {
+			seen++
+			if seen == n {
+				return i + 1
+			}
+		}
+	}
+	return len(runes)
 }
 
 // newMaskedEntry cria um campo ja com mascara e placeholder. Toda mascara deste

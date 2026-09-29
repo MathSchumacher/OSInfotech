@@ -53,6 +53,22 @@ func (e *dbsEntry) TypedShortcut(shortcut fyne.Shortcut) {
 	e.Entry.TypedShortcut(shortcut)
 }
 
+// SetText troca o texto e deixa o cursor no fim dele.
+//
+// O Fyne mantem o cursor na coluna em que estava. Num campo que o app preenche
+// sozinho (cliente reconhecido, OS aberta, valores padrao do termo) ele ficava
+// no comeco, e quem entrava no campo pelo Tab digitava na frente do que ja
+// estava escrito: 15000 no "R$ 0,00" do termo virava R$ 150.000,00.
+func (e *dbsEntry) SetText(text string) {
+	if text != e.Text {
+		// Uma posicao alem do fim: o proprio SetText traz o cursor de volta para
+		// o ultimo caractere, inclusive quando o texto quebra em varias linhas.
+		beyond := len([]rune(text)) + 1
+		e.CursorRow, e.CursorColumn = beyond, beyond
+	}
+	e.Entry.SetText(text)
+}
+
 func newFormEntry() *dbsEntry {
 	e := &dbsEntry{}
 	e.ExtendBaseWidget(e)

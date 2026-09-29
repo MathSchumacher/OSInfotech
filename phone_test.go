@@ -18,6 +18,11 @@ func TestMascaraNaoInventaTelefone(t *testing.T) {
 		// Colado com código do país.
 		{"+55 51 98765-4321", "(51) 98765-4321"},
 		{"5551987654321", "(51) 98765-4321"},
+		// Uma tecla a mais no campo já formatado: fica o número, sai o excedente.
+		{"(51) 92004-00000", "(51) 92004-0000"},
+		{"(55) 99876-54321", "(55) 99876-5432"},
+		// Colar por cima de um número pela metade continua sem inventar outro.
+		{"(51) 995351997067628", "(51"},
 		// Lixo e vazio.
 		{"", ""},
 		{"abc", ""},
