@@ -1,0 +1,10 @@
+{
+  "name": "osinfotech-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.js",
+    "dev": "npx wrangler dev --config wrangler.toml",
+    "deploy": "npx wrangler deploy --config wrangler.toml"
+  }
+}

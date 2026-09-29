@@ -1,0 +1,14 @@
+name = "osinfotech-api"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "osinfotech"
+database_id = "a64f0547-1048-462d-a025-80c8f2617764"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "FILES"
+bucket_name = "osinfotech"

@@ -1,0 +1,14 @@
+*.exe
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+.env.*
+.r2.env.local
+.synespark/
+cloudflare/worker/.dev.vars
+cloudflare/worker/.wrangler/
+dist/
+recibos/
+/docs/screenshots/
